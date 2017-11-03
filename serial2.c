@@ -26,9 +26,14 @@
 
 __pdata unsigned volatile char info_re[100] ; 	// array da mensagem recebida
 __data unsigned volatile char r = 0x00;			// contador do array
-__bit volatile msg = 0;						// flag de toda a mensagem foi recebida
 
-			
+__bit volatile msg = 0;						// flag de toda a mensagem foi recebida
+__pdata unsigned char mostrar[100];		// array que guarda a mensagem a ser mostrada
+__data unsigned char m = 0x00;			// contador do array anterior
+__data unsigned char c = 0x00;			// contador para copiar array
+__bit bt0_ant = 0;
+__bit bt0 = 0;
+__bit bt3 = 0;			
 
 
 void main(void){
@@ -55,8 +60,39 @@ void main(void){
 
 	while(1){
 
-		P0_1 = 1;
+		bt0 = P3_2;			// leitura do botão acionado por borda de descida
+		bt3 = P1_0;			// leitura do botão acionado por nível
 
+		if(msg == 1 && r == 0){			// indica se a mensagem completa foi recebida
+
+			for(c = 0 ; c < 100; c++){		// copia o array
+				P0 = 0xFF;					// indica se entrou nessa rotina
+			mostrar[c] = info_re[c];
+			}
+			if(m < 100){
+				if(mostrar[m] == 0x0A){
+					m = 0;
+				}
+
+				else{
+						if(bt0 == 1 && bt3 == 1){	// caso nenhum botão for acionado
+						
+						P0 = ~mostrar[m];		// mostra o conteudo do array invertido
+						m++;					// leds acendem com 0
+
+						}			// *** Problema encontrado, ele mostra muito rápido
+				}					// assim só dá pra ver o último dado do array
+			}
+			else{
+
+			}
+
+		}
+		else{	P0 = 0xFF;		// indica se a mensagem ainda não foi recebida
+				P0_7 = 0;
+		}
+
+		bt0_ant = bt0;
 	}
 
 	
@@ -86,9 +122,10 @@ void serial (void) __interrupt(4){
 	if (RI == 1){						// flag de recepção pela serial
 		if (r < 100){					 
 			info_re[r] = SBUF;			
-			if(info_re[r] == 0x0a){		// último caracter da mensagem é enter(0x0a)
+			if(info_re[r] == 0x0A){		// último caracter da mensagem é enter(0x0a)
 				msg = 1;				// como recebeu o último caracter, flag de mensagem completa
 				r = 0;					// reseta o contador de posição do array
+				c = 0;
 			}
 			else{
 				r++;					// caso não recebeu o "enter", continua guardando informação
@@ -100,8 +137,7 @@ void serial (void) __interrupt(4){
 			r = 0;
 		}
 	RI = 0;								// reseta a flag de recepção da serial
-	P0_1 = 0;							// indicador se recebeu informação,acende led
-
+	
 	}
 	else{
 
