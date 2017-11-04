@@ -49,6 +49,7 @@ __code unsigned char NUMf = 0b10001110; // acnede a,e,f,g para o número F
 
 __pdata unsigned char mostrar[100];				// array que guarda a mensagem a ser mostrada
 __pdata unsigned volatile char info_re[100] ; 	// array da mensagem recebida
+__data unsigned volatile char pos = 0x00;		// quantidade de elementos da matriz
 __data unsigned volatile char r = 0x00;			// contador do array
 __data unsigned volatile char cont = 0x00;		// contador do timer 0 - tempo 1 seg
 __data unsigned char caractere = 0x00;			// armazena dado a ser mostrado	
@@ -56,8 +57,11 @@ __data unsigned char display = 0x00;			// resultado da mascara com o dado
 __data unsigned char saida = 0x00;				// mostra o dado
 __data unsigned char m = 0x00;			// contador do array mostrar[100]
 __data unsigned char c = 0x00;			// contador para copiar array
+__data unsigned char e = 0x00;			// contador do array de transmissão
 __bit volatile esp = 0;					// flag para esperar 1 seg
 __bit volatile msg = 0;					// flag da tecla enter
+__bit volatile enviar = 1;				// flag para uma nova transmissão
+__bit mostrar_env = 0;					// flag para visualizar o dado enviado nos displays
 __bit bt = 0;							// chaveia os displays
 __bit bt0_ant = 0;						// estado anterior do botão
 __bit bt0 = 0;							// estado atual do botão (borda de descida)
@@ -110,12 +114,38 @@ void main(void){
 
 					while(esp == 0){	// função para esperar 1 seg
 
-						if(bt0 == 1 && bt3 == 1){	// caso nenhum botão for acionado
+						bt0 = P3_2;			
+						bt3 = P1_0;
+
+						if(bt0 == 1 && bt3 == 1 && mostrar_env == 0){	// caso nenhum botão for acionado
 						
 							P0 = ~mostrar[m];		// mostra o conteudo do array invertido nos LEDs
 							caractere = mostrar[m];	// prepara para aplicar a máscara 
 						}			
-						else{ /* transmissão*/ }
+						else if(bt0 == 0 && bt0_ant == 1 && enviar == 1){ 		// transmissão quando se aperta o botão
+							if(e < 100){
+								if(mostrar[e] == 0x0A){		
+									e = 0;
+								}
+								else{
+									SBUF = mostrar[pos - e];		// envia a informação de trás para frente
+									caractere = mostrar[pos - e];
+									e++;
+									enviar = 0;					
+									mostrar_env = 1;	
+									TH0 = 0x9E;		// carrega o valor inicial para ter
+									TL0 = 0x58;		// 1.5 seg de visualização (fica melhor)
+								}
+
+							}
+							else {
+								e = 0;
+							}
+						}
+						else if(bt3 == 0){		// mostra o elemento que foi transmitido (indice)
+							caractere = e;
+						}
+						else{}
 
 						if(bt==1){								// qual display está ligado MSB ou LSB
 
@@ -152,15 +182,16 @@ void main(void){
 						P3_7 = bt^1; 		// comando para ligar o display
 						P3_6 = bt;
 						bt = bt ^1;			// chaveia os displays, invertendo o seu valor conforme o clock
+						bt0_ant = bt0;
 					}
 				m++;				// incrementa para mostrar o elemento seguinte do array recebido
 				esp = 0;			// zera o tempo de espera
+				
 				}
 			}
 			else{
 				m = 0;
 			}
-
 		}		
 		else{	P0 = 0xFF;		// indica se a mensagem ainda não foi recebida
 				P0_7 = 0;
@@ -187,6 +218,7 @@ void timer_0 (void) __interrupt(1){
 	if(cont == 20){			// (50 ms * 20) = 1 seg
 		esp = 1;
 		cont = 0;
+		mostrar_env = 0;
 	}
 	else{}
 
@@ -203,6 +235,7 @@ void serial (void) __interrupt(4){
 		if (r < 100){					 
 			info_re[r] = SBUF;			
 			if(info_re[r] == 0x0A){		// último caracter da mensagem é enter(0x0a)
+				pos = r - 1;
 				msg = 1;				// como recebeu o último caracter, flag de mensagem completa
 				r = 0;					// reseta o contador de posição do array
 				c = 0;
@@ -219,6 +252,10 @@ void serial (void) __interrupt(4){
 
 		RI = 0;								// reseta a flag de recepção da serial
 	
+	}else if(TI == 1){
+		enviar = 1;
+		TI = 0;
+
 	}
 	else{}
 	return;
