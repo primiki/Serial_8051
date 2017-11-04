@@ -10,5 +10,4 @@ So to do this, I will put in this repository step by step of my programming.Let'
   - Receiving test
   - Test to show the information received in LEDs
   - Test to show the information received in two 7 segment displays 
-  - Transmission test
-  - Transmission test by press a button
+  - Transmission test by press a button and more (finished code)
