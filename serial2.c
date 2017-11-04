@@ -26,8 +26,9 @@
 
 __pdata unsigned volatile char info_re[100] ; 	// array da mensagem recebida
 __data unsigned volatile char r = 0x00;			// contador do array
-
-__bit volatile msg = 0;						// flag de toda a mensagem foi recebida
+__data unsigned volatile char cont = 0x00;		// contador do timer 0 - tempo 1sef
+__bit volatile esp = 0;					// flag para esperar 1 seg
+__bit volatile msg = 0;					// flag de toda a mensagem foi recebida
 __pdata unsigned char mostrar[100];		// array que guarda a mensagem a ser mostrada
 __data unsigned char m = 0x00;			// contador do array anterior
 __data unsigned char c = 0x00;			// contador para copiar array
@@ -47,12 +48,14 @@ void main(void){
 	PCON = 0b10000000;	// calculo do baud rate (PCON)
 
 	TR1 = 1;			// habilita timer 1 (TCON)
-
+	TR0 = 1;			// habilita timer 0 
+	
 	EA = 1;				// habilita a chave geral de interrupção (IE)
-	ES = 1;				// habilita a interrupção da serial (IE)
+	ES = 1;				// habilita a interrupção da serial 
+	ET0 = 1;			// habilita a inerrupção do timer 0
 
-	TMOD = 0b00100000;	// timer 1, modo 2 auto reload, controle por software
-
+	TMOD = 0b00100001;	// timer 1, modo 2 auto reload, controle por software
+						// timer 0, modo 1, controle por software
 	TH1 = 0xE6;			// Valor inicial de contagem do timer 1
 	TL1 = 0xE6;			// baud rate 2400 bps - 12MHz clock (tabela)
 
@@ -66,7 +69,7 @@ void main(void){
 		if(msg == 1 && r == 0){			// indica se a mensagem completa foi recebida
 
 			for(c = 0 ; c < 100; c++){		// copia o array
-				P0 = 0xFF;					// indica se entrou nessa rotina
+				P0_7 = 1;					// indica se entrou nessa rotina
 			mostrar[c] = info_re[c];
 			}
 			if(m < 100){
@@ -77,9 +80,15 @@ void main(void){
 				else{
 						if(bt0 == 1 && bt3 == 1){	// caso nenhum botão for acionado
 						
+						TH0 = 0x3C;			// carrega valor inicial no timer 0 (faltando 50ms)
+						TL0 = 0x0B;
+
+						while(esp == 0){	// função para esperar 1 seg
+
+						}
 						P0 = ~mostrar[m];		// mostra o conteudo do array invertido
 						m++;					// leds acendem com 0
-
+						esp = 0;
 						}			// *** Problema encontrado, ele mostra muito rápido
 				}					// assim só dá pra ver o último dado do array
 			}
@@ -110,6 +119,15 @@ void externa_2 (void) __interrupt(2){
 }
 
 void timer_0 (void) __interrupt(1){
+
+	cont++;
+
+	if(cont == 20){			// (50 ms * 20) = 1 seg
+		esp = 1;
+		cont = 0;
+	}
+	else{}
+
 	return;
 }
 
