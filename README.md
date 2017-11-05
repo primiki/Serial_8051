@@ -4,7 +4,7 @@ This is an activity the class of mcu 8051.The goal is to program an AT89C51RD2 (
 
 So to do this, I will put in this repository step by step of my programming.Let's get started !!!
 
-## Contents
+## Steps
 
   - Base code
   - Receiving test
